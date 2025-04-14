@@ -68,7 +68,108 @@ To eradicate it we need to go into each folder .csproj file and remove latest ve
 - Now if i clean and build the errors got reduced to 1, which indicated i need to clean+build a folder other than InsiderTrading that is responsible for error.
 - Then again i tried to run the solution using msbuild but again build got failed.
 - Next i did Cleaning+Building of each project folder using the Visual studio interface, got zero errors and many warnings. So I run the solution using the Run button present inside interface.
-- Now receiving the connection sql error, so i had to restore the Vigilante_master DB and encrypted connection string with MD5 and replaced it in web.config file.
+ 
+---
+
+## 🛠️ SSMS Restore Options Explained
+
+---
+
+### ✅ **1. Overwrite the existing database (WITH REPLACE)**
+
+- **Checkbox label:** `✓ Overwrite the existing database (WITH REPLACE)`
+- **T-SQL equivalent:** `WITH REPLACE`
+
+**What it does:**
+- Forces the restore to overwrite the existing database **even if the backup is from a different database or has a different DB ID**.
+- Useful when you're restoring a backup over a broken or different version of the same DB.
+
+**When to use:**
+- The database already exists and you want to fully replace it.
+- You're restoring a DB with a different name or origin (like from prod to dev).
+
+> ⚠️ Use with care — this replaces the current DB completely.
+
+---
+
+### 🔄 **2. Preserve the replication settings (WITH KEEP_REPLICATION)**
+
+- **Checkbox label:** `✓ Preserve the replication settings (WITH KEEP_REPLICATION)`
+- **T-SQL equivalent:** `WITH KEEP_REPLICATION`
+
+**What it does:**
+- Keeps the replication settings intact if the database is part of **SQL Server replication**.
+
+**When to use:**
+- You are restoring a **replicated database** and want to maintain replication roles and metadata.
+
+---
+
+### 🔐 **3. Restrict access to the restored database (WITH RESTRICTED_USER)**
+
+- **Checkbox label:** `✓ Restrict access to the restored database (WITH RESTRICTED_USER)`
+- **T-SQL equivalent:** `WITH RESTRICTED_USER`
+
+**What it does:**
+- After restore, the database will only be accessible by users with `db_owner`, `dbcreator`, or `sysadmin` roles.
+
+**When to use:**
+- You want to limit access immediately after restore for verification or admin tasks.
+
+---
+
+### 🔁 **4. Recovery State**
+
+You’ll see 3 radio buttons under **Recovery State**, which map to how SQL Server handles the recovery phase:
+
+#### a. ✅ **RESTORE WITH RECOVERY** (default)
+- **What it does:** Finalizes the restore and makes the database ready for use.
+- **When to use:** If you're restoring the **last or only backup**, and you're done restoring.
+
+#### b. 🚫 **RESTORE WITH NORECOVERY**
+- **What it does:** Puts the database in a **restoring state**, allowing **additional backups** to be applied (like diff or log backups).
+- **When to use:** If you plan to **restore more than one backup**, like a full + diff + logs.
+
+> You must use `WITH RECOVERY` at the end to make the DB usable.
+
+#### c. 🔒 **RESTORE WITH STANDBY**
+- **What it does:** Leaves the database **read-only** and **restores the transaction log undo file**, allowing for additional restores later.
+- **When to use:** If you're doing **log shipping** or need to inspect the DB between log restores.
+
+---
+
+### 🔄 **5. Close existing connections to destination database**
+
+- **Checkbox label:** `✓ Close existing connections to destination database`
+- **GUI-only option**
+- **T-SQL workaround:** Use `ALTER DATABASE ... SET SINGLE_USER WITH ROLLBACK IMMEDIATE`
+
+**What it does:**
+- Disconnects all users and sessions from the destination DB before restoring.
+- Helps avoid the “exclusive access” error you saw earlier.
+
+**When to use:**
+- Always good to enable this if you’re restoring over an existing DB that might be in use.
+
+---
+
+## 🧪 Example T-SQL Mapping:
+
+Here’s what all those options might look like in T-SQL:
+
+```sql
+RESTORE DATABASE UPSIQA_V8_1
+FROM DISK = 'C:\Backups\UPSIQA_V8_1.bak'
+WITH 
+    MOVE 'UPSIQA_V8_1_Data' TO 'C:\SQLData\UPSIQA_V8_1.mdf',
+    MOVE 'UPSIQA_V8_1_Log' TO 'C:\SQLData\UPSIQA_V8_1_log.ldf',
+    REPLACE,
+    RECOVERY,
+    STATS = 10;
+```
+
+---
+- Now that we receiving the connection sql error, so i had to restore the Vigilante_master DB and encrypted connection string with MD5 and replaced it in web.config file.
 - So now finally the UI was running after this. But i had to create few empty folders and change the some paths as of below image
   ![image](web-config-changes.png)
 - Also restore Myinsider_blank DB with required name.

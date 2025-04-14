@@ -72,6 +72,78 @@ This allows the `<handlers>` and `<modules>` sections to be used in site-level `
 
 Want me to check if any other section might cause similar issues?
 
+> **HTTP Error 500.19 – Error Code 0x80070021**  
+> **Config Error:** This configuration section cannot be used at this path.
+
+That usually means some section (like `<handlers>`, `<modules>`, or `<httpHandlers>`) is **locked at a parent level** (likely in the root `applicationHost.config` or a higher-level `web.config`).
+
+---
+
+### 🔍 Key Problem Area (Based on the error)
+
+The error points to this part:
+
+```xml
+<handlers>
+  <remove name="ExtensionlessUrlHandler-Integrated-4.0" />
+```
+
+This means **IIS is not allowing overrides of the `handlers` section** at this level.
+
+---
+
+### ✅ Fix: Unlock `handlers` section
+
+You need to **unlock the `handlers` section** from the IIS root config.
+
+You can do this in one of two ways:
+
+#### 🛠 Option 1: Use Command Line (recommended)
+
+Open **Command Prompt as Administrator**, and run:
+
+```bash
+%windir%\system32\inetsrv\appcmd unlock config -section:system.webServer/handlers
+```
+
+Do the same for `modules`, just in case:
+
+```bash
+%windir%\system32\inetsrv\appcmd unlock config -section:system.webServer/modules
+```
+
+This allows the `<handlers>` and `<modules>` sections to be used in site-level `web.config`.
+
+---
+
+#### 🧰 Option 2: IIS Manager GUI
+
+1. Open **IIS Manager**
+2. Click the **server node** (not the website)
+3. Double-click **"Configuration Editor"**
+4. In the top dropdown, navigate to: `system.webServer/handlers`
+5. On the right-side panel, click **"Unlock Section"**
+6. Repeat for `system.webServer/modules`
+
+---
+
+### 🔄 After Unlocking
+
+- **Restart IIS** (use `iisreset` in admin CMD)
+- **Reload your site** and the error should go away
+
+---
+
+### 📝 Extra Notes
+
+- This often happens when the parent IIS config (`applicationHost.config`) has `<section name="handlers" overrideModeDefault="Deny" />`
+- If you're on **shared hosting**, you might not be able to unlock — you’d need to remove that section or ask the host to unlock it
+- Your `web.config` seems like it's built for **Integrated Pipeline Mode**, so make sure your app pool is using that
+
+---
+
+Want me to check if any other section might cause similar issues?
+
 
 
 You're getting an HTTP Error 500.21, which usually means your IIS setup can't correctly handle managed code requests—typically because ASP.NET is either not installed, not properly registered, or your IIS configuration is missing something.
